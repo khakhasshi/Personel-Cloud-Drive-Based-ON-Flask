@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>江景哲先生的私有云盘</title>
+    <style>
+        .progress-container {
+            width: 100%;
+            background-color: #f3f3f3;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .progress-bar {
+            height: 24px;
+            background-color: #4caf50;
+            text-align: center;
+            line-height: 24px;
+            color: white;
+            width: 0%;
+        }
+    </style>
+</head>
+<body>
+    <h1>文件上传</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="file" id="fileInput" required>
+        <button type="button" onclick="uploadFile()">上传文件</button>
+    </form>
+
+    <div class="progress-container">
+        <div class="progress-bar" id="uploadProgress">0%</</div>
+    </div>
+
+    <!-- 搜索框 -->
+    <h2>搜索文件</h2>
+    <form method="GET" action="/">
+        <input type="text" name="search" placeholder="输入文件名..." value="{{ search_query }}">
+        <button type="submit">搜索</button>
+    </form>
+
+    <h2>已上传文件</h2>
+    <ul id="fileList">
+        {% for file in files %}
+        <li>
+            <!-- 图片预览 -->
+            {% if file.endswith('.png') or file.endswith('.jpg') or file.endswith('.jpeg') or file.endswith('.gif') %}
+                <img src="{{ url_for('download_file', filename=file) }}" alt="{{ file }}" style="width: 200px; height: auto;">
+            <!-- 视频预览 -->
+            {% elif file.endswith('.mp4') or file.endswith('.webm') or file.endswith('.ogg') %}
+                <video width="320" height="240" controls>
+                    <source src="{{ url_for('download_file', filename=file) }}" type="video/{{ file.rsplit('.', 1)[1] }}">
+                    Your browser does not support the video tag.
+                </video>
+            <!-- 非图片和视频文件，显示为下载链接 -->
+            {% else %}
+                <a href="{{ url_for('download_file', filename=file) }}">{{ file }}</a>
+            {% endif %}
+            <button onclick="downloadFile('{{ file }}')">下载</button>
+            <div class="progress-container">
+                <div class="progress-bar" id="downloadProgress_{{ file }}">0%</div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <script>
+        function uploadFile() {
+            var formData = new FormData(document.getElementById('uploadForm'));
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    var percentComplete = (event.loaded / event.total) * 100;
+                    document.getElementById('uploadProgress').style.width = percentComplete + '%';
+                    document.getElementById('uploadProgress').innerHTML = Math.round(percentComplete) + '%';
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status == 200) {
+                    alert('文件上传成功');
+                    location.reload();
+                } else {
+                    alert('上传失败');
+                }
+            };
+
+            xhr.send(formData);
+        }
+
+        function downloadFile(filename) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/uploads/' + filename, true);
+            xhr.responseType = 'blob';
+
+            xhr.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    var percentComplete = (event.loaded / event.total) * 100;
+                    document.getElementById('downloadProgress_' + filename).style.width = percentComplete + '%';
+                    document.getElementById('downloadProgress_' + filename).innerHTML = Math.round(percentComplete) + '%';
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var downloadLink = document.createElement('a');
+                    var url = window.URL.createObjectURL(xhr.response);
+                    downloadLink.href = url;
+                    downloadLink.download = filename;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                } else {
+                    alert('下载失败');
+                }
+            };
+
+            xhr.send();
+        }
+    </script>
+</body>
+</html>
